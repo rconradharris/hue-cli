@@ -37,16 +37,23 @@ def barchart(pct, width=20):
 
 
 def print_light_status(light):
-    br_pct = val2pct(light.brightness) if light.on else 0
-    try:
-        x, y = light.xy
-    except:
-        color = find_color_by_name('white')
+    if light.on:
+        br_pct = val2pct(light.brightness)
+        try:
+            x, y = light.xy
+        except:
+            color = find_color_by_name('white')
+        else:
+            color = find_nearest_color_by_x_y(x, y)
     else:
-        color = find_nearest_color_by_x_y(x, y)
+        br_pct = 0
+        color = find_color_by_name('white')
+
     parts = [light.name.ljust(20),  barchart(br_pct)]
+
     if light.on:
         parts += u'☀'
+
     print_colorized(color,  ' '.join(parts))
 
 
@@ -88,7 +95,7 @@ def find_light_by_name(bridge, match):
 
 def cmd_on(bridge, args):
     """hue on [all|light1 light2 ...]"""
-    if args.args[0] == 'all':
+    if len(args.args) == 0 or args.args[0] == 'all':
         for light in  bridge.get_light_objects():
             light.on = True
             print_light_status(light)
@@ -103,7 +110,7 @@ def cmd_on(bridge, args):
 
 def cmd_off(bridge, args):
     """hue off [all|light1 light2 ...]"""
-    if args.args[0] == 'all':
+    if len(args.args) == 0 or args.args[0] == 'all':
         for light in  bridge.get_light_objects():
             light.on = False
             print_light_status(light)
