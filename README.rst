@@ -2,6 +2,8 @@
 hue-cli
 =======
 
+![Screenshot](https://raw.githubusercontent.com/rconradharris/hue-cli/master/screenshot.png)
+
 Display light status::
 
     $ hue
