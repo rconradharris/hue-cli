@@ -1,0 +1,139 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import argparse
+import sys
+
+import phue
+
+
+def die(msg):
+    print >> sys.stderr, msg
+    sys.exit(1)
+
+
+def val2pct(v):
+    """Convert a hue value in range [0, 254] to [0, 100]"""
+    return float(v) / 254 * 100
+
+
+def pct2val(pct):
+    """Convert a percentage in range [0, 100] to [0, 254]"""
+    return int(round(float(pct) / 100 * 254))
+
+
+def barchart(pct, width=20):
+    """Draw a unicode barchart based on percent value in range [0, 1]
+    
+   ██████████▁▁▁▁▁▁▁▁▁▁ 50% 
+    """
+    filled = int(round((float(pct) / 100) * width))
+    return u'█' * filled + u'▁' * (width - filled) + "   %d%%" % pct
+
+
+
+def print_light_status(light):
+    br_pct = val2pct(light.brightness) if light.on else 0
+    print light.name.ljust(20), barchart(br_pct)
+
+
+def cmd_status(bridge, args):
+    for light in  bridge.get_light_objects():
+        print_light_status(light)
+
+
+def find_light_by_name(bridge, match):
+    """Case-insentive, substring search"""
+    match = match.lower().replace(' ', '')
+    scores = []
+    for light in bridge.get_light_objects(mode='list'):
+        name = light.name.lower().replace(' ', '')
+        score = 0
+        cmplen = min(len(match), len(name))
+        for idx in range(cmplen):
+            if match[idx] == name[idx]:
+                score += 1
+            else:
+                score = 0
+                break
+        scores.append((score, light))
+    if not scores:
+        return None
+    scores.sort()
+    best = scores[-1]
+    light = best[1]
+    return light
+
+
+def cmd_on(bridge, args):
+    """hue on [all|light1 light2 ...]"""
+    if args.args[0] == 'all':
+        for light in  bridge.get_light_objects():
+            light.on = True
+            print_light_status(light)
+        return
+
+    for match in args.args:
+        light = find_light_by_name(bridge, match)
+        light.on = True
+
+        print_light_status(light)
+
+
+def cmd_off(bridge, args):
+    """hue off [all|light1 light2 ...]"""
+    if args.args[0] == 'all':
+        for light in  bridge.get_light_objects():
+            light.on = False
+            print_light_status(light)
+        return
+
+    for match in args.args:
+        light = find_light_by_name(bridge, match)
+        light.on = False
+
+        print_light_status(light)
+
+def cmd_dim(bridge, args):
+    """hue dim <light> <pct>"""
+    match = " ".join(args.args[0:-1])
+    try:
+        pct = float(args.args[-1].replace('%', ''))
+    except ValueError:
+        die('usage: hue dim <light> <pct>')
+    if not (0 <= pct <= 100):
+        die('error: pct must be between 0 and 100')
+    light = find_light_by_name(bridge, match)
+    if pct == 0:
+        light.on = False
+    else:
+        if not light.on:
+            light.on = True
+        light.brightness = pct2val(pct)
+
+    print_light_status(light)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('cmd', nargs='?')
+    parser.add_argument('args', nargs='*')
+    parser.add_argument('-b', '--bridge', help='IP of Hue Bridge')
+    args = parser.parse_args()
+    try:
+        bridge = phue.Bridge(args.bridge)
+    except phue.PhueRegistrationException:
+        sys.stderr.write('error: press button on Hue bridge and'
+                         ' re-run to register app\n')
+        sys.exit(1)
+    if args.cmd == 'on':
+        cmd_on(bridge, args)
+    elif args.cmd == 'off':
+        cmd_off(bridge, args)
+    elif args.cmd == 'dim':
+        cmd_dim(bridge, args)
+    else:
+        cmd_status(bridge, args)
+
+
+if __name__ == '__main__':
+    main()
