@@ -29,7 +29,7 @@ def barchart(pct, width=20):
    ██████████▁▁▁▁▁▁▁▁▁▁ 50% 
     """
     filled = int(round((float(pct) / 100) * width))
-    return u'█' * filled + u'▁' * (width - filled) + "   %d%%" % pct
+    return u'█' * filled + u'▁' * (width - filled) + ("%3d%%".rjust(9) % pct)
 
 
 def print_light_status(light):
@@ -40,7 +40,10 @@ def print_light_status(light):
         color = find_color_by_name('white')
     else:
         color = find_nearest_color_by_x_y(x, y)
-    print_colorized(color,  light.name.ljust(20) + barchart(br_pct))
+    parts = [light.name.ljust(20),  barchart(br_pct)]
+    if light.on:
+        parts += u'☀'
+    print_colorized(color,  ' '.join(parts))
 
 
 def cmd_status(bridge, args):
