@@ -76,7 +76,8 @@ def find_by_closest_match(entries, match):
             else:
                 score = 0
                 break
-        scores.append((score, entry))
+        if score:
+            scores.append((score, entry))
     if not scores:
         return None
     scores.sort()
