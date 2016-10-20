@@ -2,7 +2,11 @@
 # -*- coding: utf-8 -*-
 import argparse
 import re
+import select
+import socket
 import sys
+import time
+import urlparse
 
 import phue
 from ansi.colour.rgb import rgb256
@@ -220,18 +224,71 @@ def find_nearest_color_by_x_y(x, y):
     return scores[0][1]
 
 
+def discover_hue_bridge_ip(timeout=30.0):
+    """Use UPnP to discover the Hue IP"""
+    SSDP_ADDR = "239.255.255.250"
+    SSDP_PORT = 1900
+    SSDP_MX = 1
+    SSDP_ST = 'upnp:rootdevice'
+
+    ssdpRequest = "M-SEARCH * HTTP/1.1\r\n" + \
+                    "HOST: %s:%d\r\n" % (SSDP_ADDR, SSDP_PORT) + \
+                    "MAN: \"ssdp:discover\"\r\n" + \
+                    "MX: %d\r\n" % (SSDP_MX, ) + \
+                    "ST: %s\r\n" % (SSDP_ST, ) + "\r\n"
+
+    #for i in range(attempts):
+    start = time.time()
+    while True:
+        if (time.time() - start) > timeout:
+            return None
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        except socket.error, msg:
+            continue
+        sock.sendto(ssdpRequest, (SSDP_ADDR, SSDP_PORT))
+        sock.setblocking(0)
+        ready = select.select([sock], [], [], 10)
+        if ready[0]:
+            data = sock.recv(4096)
+            headers = {}
+            for line in data.split("\r\n")[1:]:
+                if not line:
+                    continue
+                key, val = line.split(':', 1)
+                headers[key.strip()] = val.strip()
+            if 'hue-bridgeid' in headers:
+                netloc = urlparse.urlparse(headers['LOCATION']).netloc
+                ip = netloc.split(':')[0]
+                return ip
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('cmd', nargs='?')
     parser.add_argument('args', nargs='*')
     parser.add_argument('-b', '--bridge', help='IP of Hue Bridge')
     args = parser.parse_args()
+    # Bridge is found using these methods (in order of preference)
+    # 1) --bridge option
+    # 2) Saved configuration file
+    # 3) UPnP discovery
     try:
         bridge = phue.Bridge(args.bridge)
-    except phue.PhueRegistrationException:
-        sys.stderr.write('error: press button on Hue bridge and'
-                         ' re-run to register app\n')
-        sys.exit(1)
+    except:
+        if args.bridge:
+            die('error: press button on Hue bridge and re-run to register app')
+        else:
+            print 'Scanning for Hue...'
+            bridge_ip = discover_hue_bridge_ip()
+            if bridge_ip:
+                print 'Found it at %s' % bridge_ip
+            else:
+                die("error: Could not find Hue")
+            try:
+                bridge = phue.Bridge(bridge_ip)
+            except:
+                die('error: press button on Hue bridge and re-run to register app')
     if args.cmd == 'on':
         cmd_on(bridge, args)
     elif args.cmd == 'off':
