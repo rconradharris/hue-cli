@@ -154,10 +154,10 @@ def cmd_color(bridge, args):
     if len(args.args) < 2:
         die("usage: hue color <light> <color>")
     lightname = args.args[0]
-    colorname = " ".join(args.args[1:])
     light = find_light_by_name(bridge, lightname)
     if not light:
         die("error: unknown light '%s'" % lightname)
+    colorname = " ".join(args.args[1:])
     color = find_color_by_name(colorname)
     if not color:
         die("error: unknown color '%s'" % colorname)
@@ -168,6 +168,36 @@ def cmd_color(bridge, args):
                 light=light.name, color=color.name)
     light.xy = [color.x, color.y]
     print_light_status(light)
+
+
+def cmd_funk(bridge, args):
+    """hue funk <light> [duration]
+
+    Randomly shift colors for a particular light. Default time between shift
+    is 3 seconds.
+    """
+    if len(args.args) < 1:
+        die("usage: hue funk <light>")
+    lightname = args.args[0]
+    try:
+        duration = float(args.args[1])
+    except IndexError:
+        duration = 3
+    except ValueError:
+        die("error: duration must be a number")
+    light = find_light_by_name(bridge, lightname)
+    if not light:
+        die("error: unknown light '%s'" % lightname)
+    if not light.on:
+        light.on = True
+    while True:
+        color = find_color_by_name('random')
+        if args.verbose:
+            print "Setting the color of '{light}' to '{color}'".format(
+                    light=light.name, color=color.name)
+        light.xy = [color.x, color.y]
+        print_light_status(light)
+        time.sleep(duration)
 
 
 def cmd_colors(bridge, args):
