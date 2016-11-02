@@ -7,6 +7,7 @@ import random
 import re
 import select
 import socket
+import subprocess
 import sys
 import time
 import urlparse
@@ -48,7 +49,7 @@ def grayscale_brightness(br_pct):
         return 'dim gray'
 
 
-def print_light_status(light, off_color='dim gray'):
+def print_light_status(light, off_color='dim gray', extra=''):
     if light.on:
         br_pct = val2pct(light.brightness)
         try:
@@ -70,6 +71,9 @@ def print_light_status(light, off_color='dim gray'):
 
     if light.name == get_default_lightname():
         parts.append(u' (Default)')
+
+    if extra:
+        parts.append(extra)
 
     print_colorized(color,  ' '.join(parts))
 
@@ -228,7 +232,8 @@ def cmd_funk(bridge, args):
             print "Setting the color of '{light}' to '{color}'".format(
                     light=light.name, color=color.name)
         light.xy = [color.x, color.y]
-        print_light_status(light)
+        if args.verbose:
+            print_light_status(light)
         time.sleep(duration)
 
 
@@ -239,6 +244,68 @@ def cmd_colors(bridge, args):
     """
     for color in all_colors():
         print_colorized(color, color.name)
+
+
+def get_idle_time():
+    """Return the idle time of the computer in seconds.
+
+    We shell out to the *system* Python just in case we're running inside a
+    virtual environment which won't have the Quartz libraries linked in.
+    """
+    get_idle = "from Quartz.CoreGraphics import CGEventSourceSecondsSinceLastEventType as CG; print CG(1, int(4294967295))"
+    output = subprocess.check_output(['/usr/bin/python', '-c', get_idle]).strip()
+    try:
+        return float(output)
+    except ValueError:
+        die("error: unexpected idle value, should be a number '{}'".format(
+            output))
+
+
+def cmd_auto(bridge, args):
+    """hue auto <light> [duration]
+
+    Automatically turn on/off a particular light based on whether this
+    computer is idle or not. (MacOS only)
+
+    The default idle time is 5 minutes.
+    """
+    handle_default_light(bridge, args)
+    lightname = args.args[0]
+    try:
+        duration = float(args.args[1])
+    except IndexError:
+        duration = 5 * 60
+    except ValueError:
+        die("error: duration must be a number")
+    light = find_light_by_name(bridge, lightname)
+    if not light:
+        die("error: unknown light '%s'" % lightname)
+    while True:
+        idle = get_idle_time()
+        if idle >= duration:
+            if light.on:
+                if args.verbose:
+                    print "Turning off '{light}'".format(light=light.name)
+                light.on = False
+        else:
+            if not light.on:
+                if args.verbose:
+                    print "Turning on '{light}'".format(light=light.name)
+                light.on = True
+        if args.verbose:
+            print_light_status(light, extra=u'(Idle: {:.1f}s)'.format(idle))
+        time.sleep(1.0)
+
+
+def cmd_help(bridge, args):
+    if not args.args:
+        die("usage: hue help <command>")
+    cmd = args.args[0]
+    try:
+        func = CMD_DISPATCH_TABLE[cmd]
+    except KeyError:
+        die("error: unknown command '{cmd}'".format(cmd=cmd))
+    print "usage: " + func.__doc__
 
 
 def get_default_lightname():
@@ -355,7 +422,6 @@ def discover_hue_bridge_ip(timeout=30.0):
                     "MX: %d\r\n" % (SSDP_MX, ) + \
                     "ST: %s\r\n" % (SSDP_ST, ) + "\r\n"
 
-    #for i in range(attempts):
     start = time.time()
     while True:
         if (time.time() - start) > timeout:
@@ -381,16 +447,18 @@ def discover_hue_bridge_ip(timeout=30.0):
                 return ip
 
 
+CMD_DISPATCH_TABLE = {}
+
+
 def main():
-    cmd_dispatch_table = {}
     for name, func in globals().iteritems():
         if name.startswith('cmd_'):
             name = name.replace('cmd_', '')
-            cmd_dispatch_table[name] = func
+            CMD_DISPATCH_TABLE[name] = func
 
     parser = argparse.ArgumentParser()
     parser.add_argument('cmd', nargs='?',
-                        choices=sorted(cmd_dispatch_table.keys()))
+                        choices=sorted(CMD_DISPATCH_TABLE.keys()))
     parser.add_argument('args', nargs='*')
     parser.add_argument('-b', '--bridge', help='IP of Hue Bridge')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose mode')
@@ -418,7 +486,7 @@ def main():
 
     if args.cmd:
         try:
-            func = cmd_dispatch_table[args.cmd]
+            func = CMD_DISPATCH_TABLE[args.cmd]
         except KeyError:
             die("error: Unknown command '{}'".format(args.cmd))
         else:
