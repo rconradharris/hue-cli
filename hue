@@ -86,44 +86,39 @@ def find_light_by_name(bridge, match):
     return find_by_closest_match(entries, match)
 
 
+def each_light_arg(bridge, args):
+    if args.args[0] == 'all':
+        for light in  bridge.get_light_objects():
+            yield light
+    else:
+        for match in args.args:
+            light = find_light_by_name(bridge, match)
+            if not light:
+                die("error: unknown light '%s'" % match)
+            yield light
+
+
 def cmd_on(bridge, args):
     """hue on [all|light1 light2 ...]"""
-    if len(args.args) == 0 or args.args[0] == 'all':
-        if args.verbose:
-            print "Turning on all lights"
-        for light in  bridge.get_light_objects():
+    if not args.args:
+        die("usage: hue on [all|light1 light2 ...]")
+    for light in each_light_arg(bridge, args):
+        if not light.on:
+            if args.verbose:
+                print "Turning on '{light}'".format(light=light.name)
             light.on = True
-            print_light_status(light)
-        return
-
-    for match in args.args:
-        light = find_light_by_name(bridge, match)
-        if not light:
-            die("error: unknown light '%s'" % match)
-        if args.verbose:
-            print "Turning on '{light}'".format(light=light.name)
-        light.on = True
         print_light_status(light)
 
 
 def cmd_off(bridge, args):
     """hue off [all|light1 light2 ...]"""
-    if len(args.args) == 0 or args.args[0] == 'all':
-        if args.verbose:
-            print "Turning off all lights"
-        for light in  bridge.get_light_objects():
+    if not args.args:
+        die("usage: hue off [all|light1 light2 ...]")
+    for light in each_light_arg(bridge, args):
+        if light.on:
+            if args.verbose:
+                print "Turning off '{light}'".format(light=light.name)
             light.on = False
-            print_light_status(light)
-        return
-
-    for match in args.args:
-        light = find_light_by_name(bridge, match)
-        if not light:
-            die("error: unknown light '%s'" % match)
-        if args.verbose:
-            print "Turning off '{light}'".format(light=light.name)
-        light.on = False
-
         print_light_status(light)
 
 
