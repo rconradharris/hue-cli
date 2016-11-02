@@ -16,6 +16,10 @@ import phue
 from ansi.colour.rgb import rgb256
 
 
+CLOSENESS_STRICT = 0.6
+CLOSENESS_LOOSE = 0.25
+
+
 def die(msg):
     print >> sys.stderr, msg
     sys.exit(1)
@@ -83,26 +87,28 @@ def cmd_status(bridge, args):
         print_light_status(light)
 
 
-def find_by_closest_match(entries, match):
+def find_by_closest_match(entries, match, closeness=CLOSENESS_LOOSE):
     """Case-insentive, substring search"""
     match = match.lower().replace(' ', '')
     lookup = {}
     for name, entry in entries:
         name = name.lower().replace(' ', '')
         lookup[name] = entry
-    matches = difflib.get_close_matches(match, lookup.keys(), cutoff=0.25)
+    matches = difflib.get_close_matches(
+            match, lookup.keys(), cutoff=closeness)
     if not matches:
         return None
     best = matches[0]
     return lookup[best]
 
 
-def find_light_by_name(bridge, match):
+def find_light_by_name(bridge, match, closeness=CLOSENESS_LOOSE):
     """Case-insentive, substring search"""
     entries = []
     for light in bridge.get_light_objects(mode='list'):
         entries.append((light.name, light))
-    return find_by_closest_match(entries, match)
+    return find_by_closest_match(
+            entries, match, closeness=closeness)
 
 
 def each_light_arg(bridge, args):
@@ -119,14 +125,18 @@ def each_light_arg(bridge, args):
 
 def handle_default_light(bridge, args):
     use_default = False
-    if not args.args:
-        # If no args, use default light
-        use_default = True
-    else:
-        # If first arg isn't a light, then use a default light
-        light = find_light_by_name(bridge, args.args[0])
+    if args.args:
+        # If first arg isn't a light, then use a default light, use a more
+        # strict closeness value so we don't accidentally interpret something
+        # as a light that isn't
+        light = find_light_by_name(bridge, args.args[0],
+                closeness=CLOSENESS_STRICT)
         if not light:
             use_default = True
+    else:
+        # If no args, use default light
+        use_default = True
+
     if use_default:
         lightname = get_default_lightname()
         if lightname:
