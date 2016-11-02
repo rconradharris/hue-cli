@@ -123,6 +123,8 @@ def cmd_off(bridge, args):
 
 def cmd_dim(bridge, args):
     """hue dim <light> <pct>"""
+    if len(args.args) < 2:
+        die("usage: hue dim <light> <pct>")
     match = " ".join(args.args[0:-1])
     try:
         pct = float(args.args[-1].replace('%', ''))
@@ -148,6 +150,8 @@ def cmd_color(bridge, args):
 
     Set the color of a particular light
     """
+    if len(args.args) < 2:
+        die("usage: hue color <light> <color>")
     lightname = args.args[0]
     colorname = " ".join(args.args[1:])
     light = find_light_by_name(bridge, lightname)
