@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import argparse
 import difflib
+import random
 import re
 import select
 import socket
@@ -218,6 +219,8 @@ def all_colors():
 def find_color_by_name(match):
     """Case-insentive, substring search"""
     init_color_table()
+    if match.lower() == 'random':
+        return random.choice(_COLOR_TABLE)
     entries = []
     for color in _COLOR_TABLE:
         entries.append((color.name, color))
