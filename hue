@@ -88,6 +88,8 @@ def find_light_by_name(bridge, match):
 def cmd_on(bridge, args):
     """hue on [all|light1 light2 ...]"""
     if len(args.args) == 0 or args.args[0] == 'all':
+        if args.verbose:
+            print "Turning on all lights"
         for light in  bridge.get_light_objects():
             light.on = True
             print_light_status(light)
@@ -95,14 +97,17 @@ def cmd_on(bridge, args):
 
     for match in args.args:
         light = find_light_by_name(bridge, match)
+        if args.verbose:
+            print "Turning on '{light}'".format(light=light.name)
         light.on = True
-
         print_light_status(light)
 
 
 def cmd_off(bridge, args):
     """hue off [all|light1 light2 ...]"""
     if len(args.args) == 0 or args.args[0] == 'all':
+        if args.verbose:
+            print "Turning off all lights"
         for light in  bridge.get_light_objects():
             light.on = False
             print_light_status(light)
@@ -110,6 +115,8 @@ def cmd_off(bridge, args):
 
     for match in args.args:
         light = find_light_by_name(bridge, match)
+        if args.verbose:
+            print "Turning off '{light}'".format(light=light.name)
         light.on = False
 
         print_light_status(light)
@@ -130,7 +137,9 @@ def cmd_dim(bridge, args):
         if not light.on:
             light.on = True
         light.brightness = pct2val(pct)
-
+    if args.verbose:
+        print "Dimming '{light}' to {pct}%".format(
+                light=light.name, pct=pct)
     print_light_status(light)
 
 
@@ -149,6 +158,9 @@ def cmd_color(bridge, args):
         die("error: unknown color '%s'" % colorname)
     if not light.on:
         light.on = True
+    if args.verbose:
+        print "Setting the color of '{light}' to '{color}'".format(
+                light=light.name, color=color.name)
     light.xy = [color.x, color.y]
     print_light_status(light)
 
@@ -267,6 +279,7 @@ def main():
     parser.add_argument('cmd', nargs='?')
     parser.add_argument('args', nargs='*')
     parser.add_argument('-b', '--bridge', help='IP of Hue Bridge')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose mode')
     args = parser.parse_args()
     # Bridge is found using these methods (in order of preference)
     # 1) --bridge option
