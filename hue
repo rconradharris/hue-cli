@@ -177,7 +177,7 @@ def cmd_funk(bridge, args):
     is 3 seconds.
     """
     if len(args.args) < 1:
-        die("usage: hue funk <light>")
+        die("usage: hue funk <light> [duration]")
     lightname = args.args[0]
     try:
         duration = float(args.args[1])
