@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import argparse
+import difflib
 import re
 import select
 import socket
@@ -65,25 +66,15 @@ def cmd_status(bridge, args):
 def find_by_closest_match(entries, match):
     """Case-insentive, substring search"""
     match = match.lower().replace(' ', '')
-    scores = []
+    lookup = {}
     for name, entry in entries:
         name = name.lower().replace(' ', '')
-        score = 0
-        cmplen = min(len(match), len(name))
-        for idx in range(cmplen):
-            if match[idx] == name[idx]:
-                score += 1
-            else:
-                score = 0
-                break
-        if score:
-            scores.append((score, entry))
-    if not scores:
+        lookup[name] = entry
+    matches = difflib.get_close_matches(match, lookup.keys(), cutoff=0.25)
+    if not matches:
         return None
-    scores.sort()
-    best = scores[-1]
-    entry = best[1]
-    return entry
+    best = matches[0]
+    return lookup[best]
 
 
 def find_light_by_name(bridge, match):
