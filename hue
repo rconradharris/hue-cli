@@ -98,6 +98,8 @@ def cmd_on(bridge, args):
 
     for match in args.args:
         light = find_light_by_name(bridge, match)
+        if not light:
+            die("error: unknown light '%s'" % match)
         if args.verbose:
             print "Turning on '{light}'".format(light=light.name)
         light.on = True
@@ -116,11 +118,14 @@ def cmd_off(bridge, args):
 
     for match in args.args:
         light = find_light_by_name(bridge, match)
+        if not light:
+            die("error: unknown light '%s'" % match)
         if args.verbose:
             print "Turning off '{light}'".format(light=light.name)
         light.on = False
 
         print_light_status(light)
+
 
 def cmd_dim(bridge, args):
     """hue dim <light> <pct>"""
