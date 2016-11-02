@@ -38,14 +38,27 @@ def barchart(pct, width=20):
     return u'█' * filled + u'▁' * (width - filled) + ("%3d%%".rjust(9) % pct)
 
 
+def grayscale_brightness(br_pct):
+    if br_pct >= 80:
+        return 'white'
+    elif br_pct >= 40:
+        return 'gray'
+    elif br_pct >= 20:
+        return 'dim gray'
+    else:
+        return 'black'
+
+
 def print_light_status(light):
     if light.on:
         br_pct = val2pct(light.brightness)
         try:
             x, y = light.xy
         except:
-            color = find_color_by_name('white')
+            # Lights that don't support color, use brightness instead
+            color = find_color_by_name(grayscale_brightness(br_pct))
         else:
+            # Lights that support colors
             color = find_nearest_color_by_x_y(x, y)
     else:
         br_pct = 0
