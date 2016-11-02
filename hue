@@ -275,8 +275,15 @@ def discover_hue_bridge_ip(timeout=30.0):
 
 
 def main():
+    cmd_dispatch_table = {}
+    for name, func in globals().iteritems():
+        if name.startswith('cmd_'):
+            name = name.replace('cmd_', '')
+            cmd_dispatch_table[name] = func
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('cmd', nargs='?')
+    parser.add_argument('cmd', nargs='?',
+                        choices=sorted(cmd_dispatch_table.keys()))
     parser.add_argument('args', nargs='*')
     parser.add_argument('-b', '--bridge', help='IP of Hue Bridge')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose mode')
@@ -301,16 +308,14 @@ def main():
                 bridge = phue.Bridge(bridge_ip)
             except:
                 die('error: press button on Hue bridge and re-run to register app')
-    if args.cmd == 'on':
-        cmd_on(bridge, args)
-    elif args.cmd == 'off':
-        cmd_off(bridge, args)
-    elif args.cmd == 'dim':
-        cmd_dim(bridge, args)
-    elif args.cmd == 'color':
-        cmd_color(bridge, args)
-    elif args.cmd == 'colors':
-        cmd_colors(bridge, args)
+
+    if args.cmd:
+        try:
+            func = cmd_dispatch_table[args.cmd]
+        except KeyError:
+            die("error: Unknown command '{}'".format(args.cmd))
+        else:
+            func(bridge, args)
     else:
         cmd_status(bridge, args)
 
