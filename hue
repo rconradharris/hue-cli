@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import argparse
 import difflib
+import os
 import random
 import re
 import select
@@ -43,13 +44,11 @@ def grayscale_brightness(br_pct):
         return 'white'
     elif br_pct >= 40:
         return 'gray'
-    elif br_pct >= 20:
-        return 'dim gray'
     else:
-        return 'black'
+        return 'dim gray'
 
 
-def print_light_status(light):
+def print_light_status(light, off_color='dim gray'):
     if light.on:
         br_pct = val2pct(light.brightness)
         try:
@@ -62,12 +61,15 @@ def print_light_status(light):
             color = find_nearest_color_by_x_y(x, y)
     else:
         br_pct = 0
-        color = find_color_by_name('black')
+        color = find_color_by_name(off_color)
 
     parts = [light.name.ljust(20),  barchart(br_pct)]
 
     if light.on:
-        parts += u'☀'
+        parts.append(u'☀')
+
+    if light.name == get_default_lightname():
+        parts.append(u' (Default)')
 
     print_colorized(color,  ' '.join(parts))
 
@@ -111,10 +113,31 @@ def each_light_arg(bridge, args):
             yield light
 
 
+def handle_default_light(bridge, args):
+    use_default = False
+    if not args.args:
+        # If no args, use default light
+        use_default = True
+    else:
+        # If first arg isn't a light, then use a default light
+        light = find_light_by_name(bridge, args.args[0])
+        if not light:
+            use_default = True
+    if use_default:
+        lightname = get_default_lightname()
+        if lightname:
+            light = find_light_by_name(bridge, lightname)
+            if light:
+                args.args.insert(0, light.name)
+            else:
+                die("error: unknown light '%s'" % lightname)
+        else:
+            die("No default light set, so you must specify a light")
+
+
 def cmd_on(bridge, args):
     """hue on [all|light1 light2 ...]"""
-    if not args.args:
-        die("usage: hue on [all|light1 light2 ...]")
+    handle_default_light(bridge, args)
     for light in each_light_arg(bridge, args):
         if not light.on:
             if args.verbose:
@@ -125,8 +148,7 @@ def cmd_on(bridge, args):
 
 def cmd_off(bridge, args):
     """hue off [all|light1 light2 ...]"""
-    if not args.args:
-        die("usage: hue off [all|light1 light2 ...]")
+    handle_default_light(bridge, args)
     for light in each_light_arg(bridge, args):
         if light.on:
             if args.verbose:
@@ -137,8 +159,7 @@ def cmd_off(bridge, args):
 
 def cmd_dim(bridge, args):
     """hue dim <light> <pct>"""
-    if len(args.args) < 2:
-        die("usage: hue dim <light> <pct>")
+    handle_default_light(bridge, args)
     match = " ".join(args.args[0:-1])
     try:
         pct = float(args.args[-1].replace('%', ''))
@@ -164,8 +185,7 @@ def cmd_color(bridge, args):
 
     Set the color of a particular light
     """
-    if len(args.args) < 2:
-        die("usage: hue color <light> <color>")
+    handle_default_light(bridge, args)
     lightname = args.args[0]
     light = find_light_by_name(bridge, lightname)
     if not light:
@@ -189,8 +209,7 @@ def cmd_funk(bridge, args):
     Randomly shift colors for a particular light. Default time between shift
     is 3 seconds.
     """
-    if len(args.args) < 1:
-        die("usage: hue funk <light> [duration]")
+    handle_default_light(bridge, args)
     lightname = args.args[0]
     try:
         duration = float(args.args[1])
@@ -220,6 +239,44 @@ def cmd_colors(bridge, args):
     """
     for color in all_colors():
         print_colorized(color, color.name)
+
+
+def get_default_lightname():
+    path = os.path.expanduser('~/.hue/default-light')
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return f.read().strip()
+
+
+def cmd_default(bridge, args):
+    """hue default [light]
+
+    Set or display the default light.
+    """
+    if len(args.args):
+        # Set default light
+        hue_dir = os.path.expanduser('~/.hue')
+        if not os.path.exists(hue_dir):
+            os.mkdir(hue_dir)
+        path = os.path.join(hue_dir, 'default-light')
+        light = find_light_by_name(bridge, args.args[0])
+        if not light:
+            die("error: unknown light '%s'" % lightname)
+        if args.verbose:
+            print "Setting default light to '{light}'".format(
+                    light=light.name)
+        with open(path, 'w') as f:
+            f.write(light.name + '\n')
+    else:
+        lightname = get_default_lightname()
+        light = find_light_by_name(bridge, lightname)
+        if not light:
+            die("error: unknown light '%s'" % lightname)
+    if light:
+        print_light_status(light)
+    else:
+        print "No default light set"
 
 
 class Color(object):
