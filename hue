@@ -49,7 +49,7 @@ def print_light_status(light):
             color = find_nearest_color_by_x_y(x, y)
     else:
         br_pct = 0
-        color = find_color_by_name('white')
+        color = find_color_by_name('black')
 
     parts = [light.name.ljust(20),  barchart(br_pct)]
 
