@@ -34,3 +34,8 @@ Colorize a light::
 Display available colors::
 
     $ hue colors
+
+
+Get funky::
+
+    $ hue funk office
