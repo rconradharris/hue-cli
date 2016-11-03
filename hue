@@ -41,7 +41,11 @@ def barchart(pct, width=20):
    ██████████▁▁▁▁▁▁▁▁▁▁ 50% 
     """
     filled = int(round((float(pct) / 100) * width))
-    return u'█' * filled + u'▁' * (width - filled) + ("%3d%%".rjust(9) % pct)
+    return u'█' * filled + u'▁' * (width - filled)
+
+
+def format_pct(pct):
+    return "%3d%%".rjust(9) % pct
 
 
 def grayscale_brightness(br_pct):
@@ -68,13 +72,25 @@ def print_light_status(light, off_color='dim gray', extra=''):
         br_pct = 0
         color = find_color_by_name(off_color)
 
-    parts = [light.name.ljust(20),  barchart(br_pct)]
+    parts = [light.name.ljust(16)]
+
+    if light.name == get_default_lightname():
+        parts.append(u'❤ '.ljust(2))
+    else:
+        parts.append(u' '.ljust(2))
+
+    parts.append(barchart(br_pct))
+
+    if VERBOSE:
+        parts.append(format_pct(br_pct))
 
     if light.on:
         parts.append(u'☀')
+    else:
+        parts.append(u' ')
 
-    if light.name == get_default_lightname():
-        parts.append(u' (Default)')
+    if VERBOSE and light.on:
+        parts.append(color.name.ljust(30))
 
     if extra:
         parts.append(extra)
@@ -458,9 +474,11 @@ def discover_hue_bridge_ip(timeout=30.0):
 
 
 CMD_DISPATCH_TABLE = {}
+VERBOSE = False
 
 
 def main():
+    global VERBOSE
     for name, func in globals().iteritems():
         if name.startswith('cmd_'):
             name = name.replace('cmd_', '')
@@ -473,6 +491,9 @@ def main():
     parser.add_argument('-b', '--bridge', help='IP of Hue Bridge')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose mode')
     args = parser.parse_args()
+
+    VERBOSE = args.verbose
+
     # Bridge is found using these methods (in order of preference)
     # 1) --bridge option
     # 2) Saved configuration file
