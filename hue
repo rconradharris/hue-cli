@@ -242,10 +242,29 @@ def cmd_dim(bridge, args):
         dim_light(light, pct)
 
 
+def set_color(light, colorname):
+    color = find_color_by_name(colorname)
+    if not color:
+        die("error: unknown color '%s'" % colorname)
+    if not light.on:
+        light.on = True
+    if VERBOSE:
+        print "Setting the color of '{light}' to '{color}'".format(
+                light=light.name, color=color.name)
+    light.xy = [color.x, color.y]
+    print_light_status(light)
+
+
 def cmd_color(bridge, args):
     """hue color <light> <color>
 
-    Set the color of a particular light
+    Set the color of a particular light.
+
+    Using '!' or 'random' as the color will choose a single random color for
+    you.
+
+    Using '?' will enter a loop of picking random colors. You can then Ctrl-C
+    when you find a color you like.
     """
     handle_default_light(bridge, args)
     lightname = args.args[0]
@@ -253,46 +272,17 @@ def cmd_color(bridge, args):
     if not light:
         die("error: unknown light '%s'" % lightname)
     colorname = " ".join(args.args[1:])
-    color = find_color_by_name(colorname)
-    if not color:
-        die("error: unknown color '%s'" % colorname)
-    if not light.on:
-        light.on = True
-    if args.verbose:
-        print "Setting the color of '{light}' to '{color}'".format(
-                light=light.name, color=color.name)
-    light.xy = [color.x, color.y]
-    print_light_status(light)
-
-
-def cmd_funk(bridge, args):
-    """hue funk <light> [duration]
-
-    Randomly shift colors for a particular light. Default time between shift
-    is 3 seconds.
-    """
-    handle_default_light(bridge, args)
-    lightname = args.args[0]
-    try:
-        duration = float(args.args[1])
-    except IndexError:
-        duration = 3
-    except ValueError:
-        die("error: duration must be a number")
-    light = find_light_by_name(bridge, lightname)
-    if not light:
-        die("error: unknown light '%s'" % lightname)
-    if not light.on:
-        light.on = True
-    while True:
-        color = find_color_by_name('random')
-        if args.verbose:
-            print "Setting the color of '{light}' to '{color}'".format(
-                    light=light.name, color=color.name)
-        light.xy = [color.x, color.y]
-        if args.verbose:
-            print_light_status(light)
-        time.sleep(duration)
+    if colorname == '?':
+        # Color-loop
+        while True:
+            set_color(light, 'random')
+            time.sleep(1.0)
+    else:
+        # Specific color
+        if colorname == '!':
+            # Random mode
+            colorname = 'random'
+        set_color(light, colorname)
 
 
 def cmd_colors(bridge, args):
