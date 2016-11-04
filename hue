@@ -18,6 +18,8 @@ from ansi.colour.rgb import rgb256
 
 CLOSENESS_STRICT = 0.6
 CLOSENESS_LOOSE = 0.25
+DIM_LOOP_STEP = 10.0
+DIM_LOOP_SLEEP = 1.0
 
 
 def die(msg):
@@ -187,27 +189,57 @@ def cmd_off(bridge, args):
         print_light_status(light)
 
 
-def cmd_dim(bridge, args):
-    """hue dim <light> <pct>"""
-    handle_default_light(bridge, args)
-    match = " ".join(args.args[0:-1])
-    try:
-        pct = float(args.args[-1].replace('%', ''))
-    except ValueError:
-        die('usage: hue dim <light> <pct>')
-    if not (0 <= pct <= 100):
-        die('error: pct must be between 0 and 100')
-    light = find_light_by_name(bridge, match)
+def dim_light(light, pct):
     if pct == 0:
         light.on = False
     else:
         if not light.on:
             light.on = True
         light.brightness = pct2val(pct)
-    if args.verbose:
+    if VERBOSE:
         print "Dimming '{light}' to {pct}%".format(
                 light=light.name, pct=pct)
     print_light_status(light)
+
+
+def cmd_dim(bridge, args):
+    """hue dim <light> <pct>
+
+    If `pct` is a percentage then the command dims to that amount.
+
+    Alternatively, you can specify '+' to repeatedly increase brightness, or
+    '-' to repeatedly decrease brightness.
+    """
+    handle_default_light(bridge, args)
+    match = " ".join(args.args[0:-1])
+    light = find_light_by_name(bridge, match)
+    pct = args.args[-1]
+    if pct == '+':
+        pct = val2pct(light.brightness)
+        while True:
+            pct += DIM_LOOP_STEP
+            if pct >= 100:
+                break
+            dim_light(light, pct)
+            time.sleep(DIM_LOOP_SLEEP)
+        dim_light(light, 100)
+    elif pct == '-':
+        pct = val2pct(light.brightness)
+        while True:
+            pct -= DIM_LOOP_STEP
+            if pct <= 0:
+                break
+            dim_light(light, pct)
+            time.sleep(DIM_LOOP_SLEEP)
+        dim_light(light, 0)
+    else:
+        try:
+            pct = float(pct.replace('%', ''))
+        except ValueError:
+            die('usage: hue dim <light> <pct>')
+        if not (0 <= pct <= 100):
+            die('error: pct must be between 0 and 100')
+        dim_light(light, pct)
 
 
 def cmd_color(bridge, args):
