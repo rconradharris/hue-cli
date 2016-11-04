@@ -8,6 +8,7 @@ import re
 import select
 import socket
 import subprocess
+import signal
 import sys
 import time
 import urlparse
@@ -20,6 +21,13 @@ CLOSENESS_STRICT = 0.6
 CLOSENESS_LOOSE = 0.25
 DIM_LOOP_STEP = 10.0
 DIM_LOOP_SLEEP = 1.0
+
+
+def signal_handler(signal, frame):
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, signal_handler)
 
 
 def die(msg):
